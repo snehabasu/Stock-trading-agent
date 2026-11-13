@@ -1,0 +1,12 @@
+{
+  "id": "sample-001",
+  "tickers": [
+    "AAPL"
+  ],
+  "headline": "Synthetic example: quarterly results announced",
+  "summary": "Fixture only; not real news.",
+  "source": "Example Source",
+  "published_at": "2025-10-01T13:00:00Z",
+  "updated_at": null,
+  "ingested_at": "2025-10-01T13:01:00Z"
+}
