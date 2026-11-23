@@ -71,12 +71,16 @@ class LLMRequest:
     schema: dict
     temperature: float = 0.0
     thinking_budget: Optional[int] = None
+    seed: Optional[int] = None  # distinct seeds => distinct cache entries (self-consistency samples)
     feedback: Optional[str] = field(default=None, compare=False)  # retry hint, not hashed
 
     def cache_payload(self) -> dict:
-        return {"model": self.model, "system": self.system, "prompt": self.prompt,
-                "schema": self.schema, "temperature": self.temperature,
-                "thinking_budget": self.thinking_budget}
+        payload = {"model": self.model, "system": self.system, "prompt": self.prompt,
+                   "schema": self.schema, "temperature": self.temperature,
+                   "thinking_budget": self.thinking_budget}
+        if self.seed is not None:  # omitted when unset so pre-existing cache keys stay valid
+            payload["seed"] = self.seed
+        return payload
 
     @property
     def prompt_hash(self) -> str:
@@ -261,6 +265,7 @@ class GeminiBackend:
         config = types.GenerateContentConfig(
             system_instruction=request.system,
             temperature=request.temperature,
+            seed=request.seed,
             response_mime_type="application/json",
             response_json_schema=request.api_schema,
             thinking_config=(types.ThinkingConfig(thinking_budget=request.thinking_budget)
@@ -290,4 +295,5 @@ class GeminiBackend:
 
 def build_llm_client(settings: dict) -> LLMClient:
     backend = GeminiBackend(settings["api_key"], settings["timeout_seconds"])
-    return LLMClient(backend, ResponseCache(settings["cache_path"]), max_attempts=settings["max_attempts"])
+    return LLMClient(backend, ResponseCache(settings["cache_path"]), max_attempts=settings["max_attempts"],
+                     base_delay=settings.get("base_delay", 2.0))

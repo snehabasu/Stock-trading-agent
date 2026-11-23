@@ -35,8 +35,12 @@ EXTRACTOR_MODEL = "gemini-3.5-flash-lite"
 TRIAGE_THINKING_BUDGET = None
 EXTRACTOR_THINKING_BUDGET = None
 TRIAGE_BATCH_SIZE = 20          # articles per triage call
+TRIAGE_RELEVANT_LEVELS = ("minor", "material")  # triage-v2 grades counted as relevant (drop only "none")
+TRIAGE_SAMPLES = 1               # self-consistency samples per batch (1 = single greedy call)
+TRIAGE_SAMPLE_TEMPERATURE = 1.0  # used only when TRIAGE_SAMPLES > 1
 EXTRACTOR_BATCH_SIZE = 10       # (article, ticker) pairs per extraction call
 LLM_MAX_ATTEMPTS = 4
+LLM_BASE_DELAY_SECONDS = 5.0  # backoff 5s, 10s, 20s between attempts (Gemini 503s last a while)
 LLM_TIMEOUT_SECONDS = 60
 EXPERIMENT_CONDITIONS = 6
 
@@ -59,7 +63,8 @@ def load_llm_settings():
     if not key:
         raise RuntimeError("Set GEMINI_API_KEY in .env")
     return {"api_key": key, "cache_path": Path(os.getenv("LLM_CACHE_PATH", "data/llm_cache.sqlite")),
-            "max_attempts": LLM_MAX_ATTEMPTS, "timeout_seconds": LLM_TIMEOUT_SECONDS}
+            "max_attempts": LLM_MAX_ATTEMPTS, "timeout_seconds": LLM_TIMEOUT_SECONDS,
+            "base_delay": LLM_BASE_DELAY_SECONDS}
 
 def load_settings():
     load_dotenv()

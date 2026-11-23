@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS price_bars (
 CREATE INDEX IF NOT EXISTS idx_bars_ticker_time ON price_bars(ticker,timestamp);
 CREATE TABLE IF NOT EXISTS triage_results (
  article_id TEXT NOT NULL REFERENCES news_articles(id), ticker TEXT NOT NULL,
- relevant INTEGER NOT NULL, reason TEXT, model TEXT NOT NULL, model_version TEXT,
+ relevant INTEGER NOT NULL, materiality TEXT, reason TEXT, model TEXT NOT NULL, model_version TEXT,
+ n_samples INTEGER, votes_json TEXT, score REAL, p_relevant REAL, agreement REAL,
  prompt_version TEXT NOT NULL, prompt_hash TEXT NOT NULL, input_hash TEXT NOT NULL,
  window_start TEXT, window_end TEXT, created_at TEXT NOT NULL,
  PRIMARY KEY(article_id,ticker,model,prompt_version)
@@ -47,6 +48,9 @@ CREATE TABLE IF NOT EXISTS ingestion_runs (
 );
 """
 
+TRIAGE_ADDED_COLUMNS=[("materiality","TEXT"),("n_samples","INTEGER"),("votes_json","TEXT"),
+  ("score","REAL"),("p_relevant","REAL"),("agreement","REAL")]
+
 class Database:
     def __init__(self, path):
         self.path = Path(path)
@@ -57,7 +61,12 @@ class Database:
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
     def initialize(self):
-        with self.connect() as conn: conn.executescript(SCHEMA)
+        with self.connect() as conn:
+            conn.executescript(SCHEMA)
+            cols={r[1] for r in conn.execute("PRAGMA table_info(triage_results)")}
+            for col,kind in TRIAGE_ADDED_COLUMNS:  # databases created before these columns existed
+                if col not in cols:
+                    conn.execute(f"ALTER TABLE triage_results ADD COLUMN {col} {kind}")
     def upsert_news(self, item):
         raw = json.dumps(item.get("raw", {}), default=str)
         symbols = json.dumps(sorted(set(item["tickers"])))

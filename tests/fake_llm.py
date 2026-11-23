@@ -22,9 +22,19 @@ class FakeGemini:
             return LLMResponse(text=step, model_version=version)
         prompt = request.full_prompt()
         if "ARTICLES:" in prompt:
-            results = [{"article_id": a["article_id"], "ticker": t,
-                        "relevant": "roundup" not in a["headline"].lower(), "reason": "fake"}
-                       for a in _payload(prompt, "ARTICLES:\n") for t in a["tickers_to_judge"]]
+            graded = "materiality" in request.schema["properties"]["results"]["items"]["properties"]
+            results = []
+            for a in _payload(prompt, "ARTICLES:\n"):
+                h = a["headline"].lower()
+                for t in a["tickers_to_judge"]:
+                    r = {"article_id": a["article_id"], "ticker": t, "reason": "fake"}
+                    if graded and "flip" in h and request.seed is not None:
+                        r["materiality"] = ["none", "minor", "material", "none", "none"][request.seed % 5]
+                    elif graded:
+                        r["materiality"] = "none" if "roundup" in h else "minor" if "minor" in h else "material"
+                    else:
+                        r["relevant"] = "roundup" not in h
+                    results.append(r)
             return LLMResponse(json.dumps({"results": results}), version, 100, 20)
         events = []
         for it in _payload(prompt, "ITEMS:\n"):

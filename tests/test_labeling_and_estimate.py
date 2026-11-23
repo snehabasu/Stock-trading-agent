@@ -34,3 +34,30 @@ def test_split_days_and_naive_formula():
     r = estimate(None, articles_per_day=25)
     assert r["naive_calls"] == 204 * 6 * 2
     assert r["cached_calls"] < r["naive_calls"]
+
+
+def test_sample_skips_articles_with_triage_output(tmp_path):
+    db = Database(tmp_path / "m.sqlite"); db.initialize()
+    for i in range(4):
+        db.upsert_news(make_news(f"n{i}", f"2025-03-0{i + 1}T12:00:00Z", tickers=["MSFT"]))
+    with db.connect() as c:
+        c.execute("""INSERT INTO triage_results (article_id,ticker,relevant,model,prompt_version,
+                     prompt_hash,input_hash,created_at) VALUES ('n0','MSFT',1,'m','v','h','i','t')""")
+    rows = sample_for_labeling(db, "2025-03-01T00:00:00Z", "2025-04-01T00:00:00Z", n=10)
+    assert sorted(r["article_id"] for r in rows) == ["n1", "n2", "n3"]
+
+
+def test_unsure_labels(tmp_path):
+    from src.labeling import count_label_rows
+    path = tmp_path / "l.csv"
+    path.write_text("article_id,ticker,relevant\na,T,1\nb,T,0?\nc,T,\nd,T,1 ?\n")
+    assert read_labels(path) == {("a", "T"): True, ("b", "T"): False, ("d", "T"): True}
+    assert read_labels(path, include_unsure=False) == {("a", "T"): True}
+    assert count_label_rows(path) == {"rows": 4, "sure": 1, "unsure": 2, "blank": 1}
+
+
+def test_auc_and_brier():
+    from src.labeling import auc, brier
+    labels = {("a", "T"): True, ("b", "T"): True, ("c", "T"): False, ("d", "T"): False}
+    assert auc(labels, {("a", "T"): .9, ("b", "T"): .5, ("c", "T"): .5, ("d", "T"): .1}) == 0.875
+    assert brier(labels, {("a", "T"): 1, ("b", "T"): 1, ("c", "T"): 0, ("d", "T"): 0}) == 0

@@ -97,3 +97,54 @@ def test_expect_pairs_flags_duplicates():
 
 def test_candidate_tickers_alias_aware():
     assert candidate_tickers({"tickers": ["brk.b", "AAPL", "MSFT"]}, ["BRK-B", "MSFT"]) == ["BRK-B", "MSFT"]
+
+
+def test_triage_v2_grades_and_thresholds(tmp_path):
+    items = [make_news("m", "2025-10-15T13:00:00Z", tickers=["MSFT"], headline="MSFT earnings"),
+             make_news("n", "2025-10-15T13:00:00Z", tickers=["MSFT"], headline="minor update"),
+             make_news("r", "2025-10-15T13:00:00Z", tickers=["MSFT"], headline="Market roundup")]
+    llm = make_llm(tmp_path, FakeGemini())
+    out = {r["article_id"]: r for r in triage(llm, items)}
+    assert {k: v["materiality"] for k, v in out.items()} == {"m": "material", "n": "minor", "r": "none"}
+    assert [k for k, v in out.items() if v["relevant"]] == ["m", "n"]  # default drops only "none"
+    strict = triage(llm, items, relevant_levels=("material",))
+    assert [r["article_id"] for r in strict if r["relevant"]] == ["m"]
+    v1 = triage(llm, items, version="triage-v1")
+    assert all(r["materiality"] is None for r in v1) and [r["relevant"] for r in v1] == [True, True, False]
+
+
+def test_old_database_gets_materiality_column(tmp_path):
+    import sqlite3
+    path = tmp_path / "old.sqlite"
+    with sqlite3.connect(path) as c:
+        c.execute("""CREATE TABLE triage_results (article_id TEXT, ticker TEXT, relevant INTEGER,
+                     reason TEXT, model TEXT, model_version TEXT, prompt_version TEXT, prompt_hash TEXT,
+                     input_hash TEXT, window_start TEXT, window_end TEXT, created_at TEXT,
+                     PRIMARY KEY(article_id,ticker,model,prompt_version))""")
+    db = Database(path); db.initialize(); db.initialize()
+    with db.connect() as c:
+        assert "materiality" in {r[1] for r in c.execute("PRAGMA table_info(triage_results)")}
+
+
+def test_self_consistency_votes_and_cache(tmp_path):
+    items = [make_news("m", "2025-10-15T13:00:00Z", tickers=["MSFT"], headline="MSFT earnings"),
+             make_news("f", "2025-10-15T13:00:00Z", tickers=["MSFT"], headline="flip coin news")]
+    fake = FakeGemini()
+    out = {r["article_id"]: r for r in triage(make_llm(tmp_path, fake), items, samples=5)}
+    assert len(fake.calls) == 5 and {c.seed for c in fake.calls} == {0, 1, 2, 3, 4}
+    assert all(c.temperature == 1.0 for c in fake.calls)
+    m, f = out["m"], out["f"]
+    assert (m["materiality"], m["relevant"], m["agreement"], m["score"]) == ("material", True, 1.0, 1.0)
+    # votes none, minor, material, none, none -> median none; 3/5 agree it is not relevant
+    assert f["votes"] == ["none", "minor", "material", "none", "none"]
+    assert (f["materiality"], f["relevant"], f["agreement"]) == ("none", False, 0.6)
+    assert f["score"] == 0.3 and f["prompt_version"] == "triage-v2+sc5" and f["n_samples"] == 5
+    again = triage(make_llm(tmp_path, fake), items, samples=5)  # fresh client, same cache file
+    assert len(fake.calls) == 5 and all(r["cached"] for r in again)
+
+
+def test_seed_only_hashed_when_set():
+    from src.llm_client import LLMRequest
+    base = LLMRequest(model="m", system="s", prompt="p", schema={})
+    assert "seed" not in base.cache_payload()
+    assert LLMRequest(model="m", system="s", prompt="p", schema={}, seed=0).prompt_hash != base.prompt_hash

@@ -64,4 +64,10 @@ Event contract: `{"article_id","ticker","event_type","direction","horizon","conf
 
 **Model facts (checked 2026-11-23):** `gemini-3.5-flash-lite` is stable with no announced shutdown, free of charge on the free tier, knowledge cutoff March 2026 (the model card says some domains stop at January 2025). Gemini 2.5 returns 404 for new API users, and `gemini-2.5-flash` auto-routes to 3.5 Flash-Lite from 2026-12-01, so 2.5 is not an option. The model guard rejects any response from a model other than the one requested. 3.5 Flash-Lite rejects `thinking_budget=0`, so the default thinking setting is used. Free-tier rate limits are only shown in your AI Studio project.
 
-Triage evaluation: see `docs/triage_labeling_guide.md`.
+Triage evaluation: see `docs/triage_labeling_guide.md`. Default prompt is `triage-v2`, which grades each pair none / minor / material; pairs graded minor or material go to extraction (`TRIAGE_RELEVANT_LEVELS`).
+```bash
+python -m src.cli label-eval                            # triage-v2, one greedy call per batch
+python -m src.cli label-eval --triage-version triage-v1 # yes/no baseline
+python -m src.cli label-eval --samples 5                # self-consistency: 5 seeded samples, median vote
+```
+Results on the first 27 hand labels (dev split): v1 precision 52% / recall 92%; v2 57% / 100% (AUC 0.72); v2 with 5-sample self-consistency 55% / 100% (AUC 0.71). The 5 samples agreed unanimously on 23 of 27 articles, so the errors are systematic (where the minor/material line falls) rather than sampling noise; the pipeline therefore uses one call per batch (`TRIAGE_SAMPLES = 1`).

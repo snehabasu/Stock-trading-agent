@@ -8,8 +8,9 @@ that batch was public.
 """
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 from config import EXTRACTOR_MODEL, TICKERS, TRIAGE_MODEL
 from src.event_extractor import EVENT_FIELDS, EXTRACTOR_PROMPT_VERSION, extract_events
@@ -17,7 +18,7 @@ from src.llm_client import LLMClient
 from src.point_in_time import _cutoff, get_news_window
 from src.stage_utils import canonical_ticker
 from src.time_utils import now_utc
-from src.triage import TRIAGE_PROMPT_VERSION, triage
+from src.triage import triage
 
 
 def utc_day_window(day: date):
@@ -27,12 +28,16 @@ def utc_day_window(day: date):
 
 def run_window(db, llm: LLMClient, start, end, universe: Sequence[str] = TICKERS,
                triage_model: str = TRIAGE_MODEL, extractor_model: str = EXTRACTOR_MODEL,
-               require_ingested_before: bool = False) -> Dict:
+               require_ingested_before: bool = False, triage_version: Optional[str] = None,
+               triage_samples: Optional[int] = None) -> Dict:
     start_s, end_s = _cutoff(start), _cutoff(end)
     items = get_news_window(db, start_s, end_s, require_ingested_before=require_ingested_before)
     by_id = {it["id"]: it for it in items}
 
-    triaged = triage(llm, items, universe, model=triage_model)
+    kw = {"version": triage_version} if triage_version else {}
+    if triage_samples:
+        kw["samples"] = triage_samples
+    triaged = triage(llm, items, universe, model=triage_model, **kw)
     _store_triage(db, triaged, start_s, end_s)
 
     relevant = [(by_id[t["article_id"]], t["ticker"]) for t in triaged if t["relevant"]]
@@ -49,12 +54,14 @@ def _store_triage(db, rows, start_s, end_s):
     created = now_utc()
     with db.connect() as conn:
         conn.executemany(
-            """INSERT OR REPLACE INTO triage_results (article_id,ticker,relevant,reason,model,
-               model_version,prompt_version,prompt_hash,input_hash,window_start,window_end,created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-            [(r["article_id"], r["ticker"], int(r["relevant"]), r["reason"], r["model"],
-              r["model_version"], r["prompt_version"], r["prompt_hash"], r["input_hash"],
-              start_s, end_s, created) for r in rows])
+            """INSERT OR REPLACE INTO triage_results (article_id,ticker,relevant,materiality,reason,
+               model,model_version,n_samples,votes_json,score,p_relevant,agreement,prompt_version,
+               prompt_hash,input_hash,window_start,window_end,created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            [(r["article_id"], r["ticker"], int(r["relevant"]), r.get("materiality"), r["reason"], r["model"],
+              r["model_version"], r.get("n_samples"), json.dumps(r.get("votes")), r.get("score"),
+              r.get("p_relevant"), r.get("agreement"), r["prompt_version"], r["prompt_hash"],
+              r["input_hash"], start_s, end_s, created) for r in rows])
 
 
 def _store_events(db, events, available_at):

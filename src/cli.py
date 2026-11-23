@@ -17,6 +17,8 @@ def main():
     p.add_argument("--out",help="run-day/run-window/label-sample: output path")
     p.add_argument("--labels",default="data/labels/triage_labels.csv")
     p.add_argument("--n",type=int,default=50)
+    p.add_argument("--triage-version",default=None,help="triage prompt version, e.g. triage-v1 (default: latest)")
+    p.add_argument("--samples",type=int,default=None,help="self-consistency samples for triage (default: config)")
     p.add_argument("--live",action="store_true",help="also require ingested_at <= window end")
     p.add_argument("--relevance-rate",type=float,default=0.5)
     p.add_argument("--articles-per-day",type=float,default=None)
@@ -70,7 +72,9 @@ def run_llm(a, db):
     llm=build_llm_client(s)
     if a.command=="label-eval":
         from src.labeling import evaluate_triage, format_report
-        print(format_report(evaluate_triage(db,llm,a.labels))); return
+        kw={"version":a.triage_version} if a.triage_version else {}
+        if a.samples: kw["samples"]=a.samples
+        print(format_report(evaluate_triage(db,llm,a.labels,**kw))); return
     from src.event_pipeline import run_window, utc_day_window
     if a.command=="run-day":
         if not a.date: raise SystemExit("run-day needs --date YYYY-MM-DD")
@@ -78,7 +82,8 @@ def run_llm(a, db):
     else:
         if not (a.start and a.end): raise SystemExit("run-window needs --start and --end (ISO, UTC)")
         start,end=a.start,a.end
-    result=run_window(db,llm,start,end,require_ingested_before=a.live)
+    result=run_window(db,llm,start,end,require_ingested_before=a.live,triage_version=a.triage_version,
+                      triage_samples=a.samples)
     text=json.dumps(result["events"],indent=2)
     if a.out:
         Path(a.out).parent.mkdir(parents=True,exist_ok=True); Path(a.out).write_text(text+"\n")
