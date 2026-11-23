@@ -24,6 +24,22 @@ CREATE TABLE IF NOT EXISTS price_bars (
  PRIMARY KEY(ticker,timestamp,timeframe,adjustment,feed)
 );
 CREATE INDEX IF NOT EXISTS idx_bars_ticker_time ON price_bars(ticker,timestamp);
+CREATE TABLE IF NOT EXISTS triage_results (
+ article_id TEXT NOT NULL REFERENCES news_articles(id), ticker TEXT NOT NULL,
+ relevant INTEGER NOT NULL, reason TEXT, model TEXT NOT NULL, model_version TEXT,
+ prompt_version TEXT NOT NULL, prompt_hash TEXT NOT NULL, input_hash TEXT NOT NULL,
+ window_start TEXT, window_end TEXT, created_at TEXT NOT NULL,
+ PRIMARY KEY(article_id,ticker,model,prompt_version)
+);
+CREATE TABLE IF NOT EXISTS news_events (
+ article_id TEXT NOT NULL REFERENCES news_articles(id), ticker TEXT NOT NULL,
+ event_type TEXT NOT NULL, direction TEXT NOT NULL, horizon TEXT NOT NULL,
+ confidence REAL NOT NULL, model TEXT NOT NULL, model_version TEXT,
+ prompt_version TEXT NOT NULL, prompt_hash TEXT NOT NULL, input_hash TEXT NOT NULL,
+ available_at TEXT NOT NULL, created_at TEXT NOT NULL,
+ PRIMARY KEY(article_id,ticker,model,prompt_version)
+);
+CREATE INDEX IF NOT EXISTS idx_events_ticker_time ON news_events(ticker,available_at);
 CREATE TABLE IF NOT EXISTS ingestion_runs (
  run_id INTEGER PRIMARY KEY AUTOINCREMENT, data_type TEXT NOT NULL,
  started_at TEXT NOT NULL, finished_at TEXT, records_seen INTEGER DEFAULT 0,
@@ -51,10 +67,12 @@ class Database:
               VALUES (?,?,?,?,?,?,?,?,?,?)""",
               (item["id"],symbols,item["headline"],item.get("summary"),item.get("source"),
                item.get("url"),item["published_at"],item.get("updated_at"),item["ingested_at"],raw))
+            # ingested_at keeps the FIRST time the article was seen; later sightings are
+            # recorded as observed_at in news_article_versions.
             conn.execute("""UPDATE news_articles SET tickers_json=?,headline=?,summary=?,source=?,
-              url=?,updated_at=?,ingested_at=?,raw_json=? WHERE id=?""",
+              url=?,updated_at=?,raw_json=? WHERE id=?""",
               (symbols,item["headline"],item.get("summary"),item.get("source"),item.get("url"),
-               item.get("updated_at"),item["ingested_at"],raw,item["id"]))
+               item.get("updated_at"),raw,item["id"]))
             conn.execute("""INSERT OR IGNORE INTO news_article_versions
               (article_id,version_hash,headline,summary,updated_at,observed_at,raw_json)
               VALUES (?,?,?,?,?,?,?)""",

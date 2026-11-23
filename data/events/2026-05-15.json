@@ -1,0 +1,218 @@
+[
+  {
+    "article_id": "122243868",
+    "ticker": "NVDA",
+    "event_type": "partnership_contract",
+    "direction": "positive",
+    "horizon": "medium_term",
+    "confidence": 0.7
+  },
+  {
+    "article_id": "122244190",
+    "ticker": "MSFT",
+    "event_type": "other",
+    "direction": "positive",
+    "horizon": "short_term",
+    "confidence": 0.8
+  },
+  {
+    "article_id": "122244192",
+    "ticker": "NVDA",
+    "event_type": "partnership_contract",
+    "direction": "positive",
+    "horizon": "medium_term",
+    "confidence": 0.8
+  },
+  {
+    "article_id": "122244194",
+    "ticker": "JNJ",
+    "event_type": "product",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.5
+  },
+  {
+    "article_id": "122244203",
+    "ticker": "AMGN",
+    "event_type": "analyst_action",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.6
+  },
+  {
+    "article_id": "122244224",
+    "ticker": "AVGO",
+    "event_type": "analyst_action",
+    "direction": "positive",
+    "horizon": "short_term",
+    "confidence": 0.9
+  },
+  {
+    "article_id": "122244225",
+    "ticker": "LLY",
+    "event_type": "legal",
+    "direction": "positive",
+    "horizon": "medium_term",
+    "confidence": 0.9
+  },
+  {
+    "article_id": "122244230",
+    "ticker": "MA",
+    "event_type": "partnership_contract",
+    "direction": "positive",
+    "horizon": "medium_term",
+    "confidence": 0.7
+  },
+  {
+    "article_id": "122244249",
+    "ticker": "AMGN",
+    "event_type": "capital_return",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.9
+  },
+  {
+    "article_id": "122244250",
+    "ticker": "WFC",
+    "event_type": "partnership_contract",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.5
+  },
+  {
+    "article_id": "122244252",
+    "ticker": "WFC",
+    "event_type": "partnership_contract",
+    "direction": "positive",
+    "horizon": "short_term",
+    "confidence": 0.6
+  },
+  {
+    "article_id": "122245028",
+    "ticker": "MSFT",
+    "event_type": "merger_acquisition",
+    "direction": "positive",
+    "horizon": "short_term",
+    "confidence": 0.7
+  },
+  {
+    "article_id": "122245029",
+    "ticker": "META",
+    "event_type": "regulatory",
+    "direction": "negative",
+    "horizon": "short_term",
+    "confidence": 0.6
+  },
+  {
+    "article_id": "122245031",
+    "ticker": "BRK-B",
+    "event_type": "regulatory",
+    "direction": "positive",
+    "horizon": "medium_term",
+    "confidence": 0.7
+  },
+  {
+    "article_id": "122245095",
+    "ticker": "NVDA",
+    "event_type": "macro_sector",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.5
+  },
+  {
+    "article_id": "122245098",
+    "ticker": "BRK-B",
+    "event_type": "other",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.9
+  },
+  {
+    "article_id": "122245261",
+    "ticker": "MSFT",
+    "event_type": "partnership_contract",
+    "direction": "positive",
+    "horizon": "medium_term",
+    "confidence": 0.7
+  },
+  {
+    "article_id": "122245272",
+    "ticker": "COST",
+    "event_type": "product",
+    "direction": "positive",
+    "horizon": "short_term",
+    "confidence": 0.6
+  },
+  {
+    "article_id": "122245273",
+    "ticker": "COST",
+    "event_type": "legal",
+    "direction": "negative",
+    "horizon": "short_term",
+    "confidence": 0.7
+  },
+  {
+    "article_id": "122245280",
+    "ticker": "WFC",
+    "event_type": "capital_return",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.8
+  },
+  {
+    "article_id": "122245336",
+    "ticker": "JNJ",
+    "event_type": "product",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.8
+  },
+  {
+    "article_id": "122245339",
+    "ticker": "PEP",
+    "event_type": "product",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.7
+  },
+  {
+    "article_id": "122245368",
+    "ticker": "ORCL",
+    "event_type": "capital_return",
+    "direction": "neutral",
+    "horizon": "medium_term",
+    "confidence": 0.6
+  },
+  {
+    "article_id": "122245374",
+    "ticker": "PEP",
+    "event_type": "product",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.7
+  },
+  {
+    "article_id": "122245379",
+    "ticker": "WFC",
+    "event_type": "other",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.5
+  },
+  {
+    "article_id": "122245410",
+    "ticker": "AMGN",
+    "event_type": "regulatory",
+    "direction": "negative",
+    "horizon": "medium_term",
+    "confidence": 0.85
+  },
+  {
+    "article_id": "122245615",
+    "ticker": "WFC",
+    "event_type": "legal",
+    "direction": "neutral",
+    "horizon": "short_term",
+    "confidence": 0.8
+  }
+]

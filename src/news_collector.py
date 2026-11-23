@@ -1,4 +1,5 @@
 import hashlib, json
+from config import ALPACA_NEWS_SYMBOLS, alpaca_symbols, canonical_ticker
 from src.time_utils import utc_iso, now_utc
 
 def normalize_article(a):
@@ -10,13 +11,13 @@ def normalize_article(a):
         f"{headline}|{utc_iso(published)}|{url or ''}".encode()).hexdigest()
     version_text = json.dumps({"headline":headline,"summary":summary,
        "updated_at":a.get("updated_at"),"url":url},sort_keys=True,default=str)
-    return {"id":article_id,"tickers":sorted({str(x).upper() for x in a.get("symbols",[])}),
+    return {"id":article_id,"tickers":sorted({canonical_ticker(x) for x in a.get("symbols",[])}),
       "headline":headline,"summary":summary,"source":a.get("source") or "Alpaca","url":url,
       "published_at":utc_iso(published),"updated_at":utc_iso(a.get("updated_at")),
       "ingested_at":now_utc(),"version_hash":hashlib.sha256(version_text.encode()).hexdigest(),"raw":a}
 
 def fetch_news(client, symbols, start, end, limit=50):
-    params={"symbols":",".join(symbols),"start":start,"end":end,"limit":limit,
+    params={"symbols":",".join(alpaca_symbols(symbols,ALPACA_NEWS_SYMBOLS)),"start":start,"end":end,"limit":limit,
             "sort":"asc","include_content":"false"}
     while True:
         payload=client.get("/v1beta1/news",params)
