@@ -99,6 +99,16 @@ python -m src.cli evaluate-runs --start 2026-08-01 --end 2026-09-30 \
 - **Universe groups** (`config.UNIVERSE_GROUPS`): `tech` = AVGO, META, MSFT, NVDA, ORCL, QCOM; `non_tech` = the other 9. META (GICS Communication Services) is grouped with tech as a heavily covered platform company.
 - **Prompt versions:** `decide-v1` parked ~65% in cash and held on 40 of 42 validation days (audit PASS, but useless as a strategy). `decide-v2` (default) adds a benchmark mandate: start from equal weight in the run's universe ((1 - min_cash)/N per stock) and tilt on evidence; cash above `min_cash` is an active bet that needs a reason. Funding a new all-cash portfolio is exempt from `max_turnover` (the limit governs rebalancing); every other limit still applies.
 - **Scoring** (`src/evaluate_runs.py`): return, Sharpe, max drawdown, beta/alpha and information ratio against the run's own equal-weight buy-and-hold benchmark (bought at the first execution open with the same cost), plus the news effect = news minus no-news daily returns with a t-statistic. Judge tech vs non-tech on excess/alpha and on the news effect, not raw return (raw return mostly measures the sector). A quick read only; ~40 days is short.
+- **Validation results** (2026-08-03..09-30, 42 days, gemini-3.5-flash-lite, `decide-v2`, moderate; all audits PASS; `data/decisions/`):
+
+  | run | return | benchmark | excess | Sharpe | invested | holds |
+  |---|---|---|---|---|---|---|
+  | tech, news | +10.49% | +12.34% | -1.85% | 2.69 | 90% | 14% |
+  | tech, no news | +10.65% | +12.34% | -1.69% | 2.79 | 88% | 67% |
+  | non_tech, news | -2.62% | -1.90% | -0.72% | -1.67 | 86% | 29% |
+  | non_tech, no news | -3.63% | -1.90% | -1.72% | -2.09 | 90% | 83% |
+
+  News effect (news minus no-news): tech -0.16% (t = -0.08), non_tech +1.01% (t = +0.47); neither is significant over 42 days. Most of the negative excess is the 10% `min_cash` against a fully invested benchmark. Known issue: the v2 prompt does not tell the model the initial deployment is exempt from `max_turnover`, so non_tech-news ramped in over 6 days (both non_tech runs earned about the same over that stretch); fix in the next prompt version before the test-split run.
 - **Tuning on validation only:** `decide` refuses any range overlapping the test split unless `--allow-test` is passed.
 - **Audit** checks every trading day has a schema-valid Proposal within limits, and every cited article was shown to the agent and was published (and any known update made) before the decision time.
 - The paper tracker in `src/market_features.py` (overnight drift, fills at the open, 5 bps cost) only feeds the agent's portfolio and memory; Punit's backtester is the authoritative P&L.
