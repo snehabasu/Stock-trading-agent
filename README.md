@@ -71,3 +71,34 @@ python -m src.cli label-eval --triage-version triage-v1 # yes/no baseline
 python -m src.cli label-eval --samples 5                # self-consistency: 5 seeded samples, median vote
 ```
 Results on the first 27 hand labels (dev split): v1 precision 52% / recall 92%; v2 57% / 100% (AUC 0.72); v2 with 5-sample self-consistency 55% / 100% (AUC 0.71). The 5 samples agreed unanimously on 23 of 27 articles, so the errors are systematic (where the minor/material line falls) rather than sampling noise; the pipeline therefore uses one call per batch (`TRIAGE_SAMPLES = 1`).
+
+## Decision agent (Task 3)
+Each trading day D the agent decides at **D 00:00 UTC** (after the previous close; orders fill at D's open):
+```
+events (available_at <= as_of, last 3 days) + price features (bars < as_of) + current paper portfolio
++ risk profile + thesis memory (this run's past decisions, as_of < now)
+  -> draft Proposal -> what-if tool (trades, turnover, cost, ex-ante vol, limit breaches)
+  -> review round -> deterministic enforcement of hard limits -> Proposal JSON + decision_log row
+```
+Proposal (`schemas/proposal.schema.json`):
+`{"as_of", "run", "hold", "weights": {ticker: w}, "cash", "rationale", "cited_article_ids"}`. Long-only; `hold=true` keeps the drifted portfolio (allowed up to 2 points past a limit, trimmed beyond that).
+
+```bash
+python -m src.cli run-range --start 2026-07-29 --end 2026-09-29     # events needed by the validation window
+python -m src.cli decide --start 2026-08-01 --end 2026-09-30        # news, named, moderate, all 15
+python -m src.cli decide --start 2026-08-01 --end 2026-09-30 --no-news   # same LLM without news (baseline)
+python -m src.cli decide --start 2026-08-01 --end 2026-09-30 --mask      # anonymized companies (H2)
+python -m src.cli decide --start 2026-08-01 --end 2026-09-30 --universe tech      # or non_tech
+python -m src.cli audit-decisions --start 2026-08-01 --end 2026-09-30   # same flags select the run
+python -m src.cli evaluate-runs --start 2026-08-01 --end 2026-09-30 \
+  --run tech-news-named-moderate-decide-v2 --run tech-nonews-named-moderate-decide-v2   # score runs
+```
+- **Runs** are named `<universe>-<news|nonews>-<named|masked>-<profile>-<prompt version>`; memory never crosses runs. Proposals are exported to `data/decisions/<run>.jsonl`.
+- **No-news mode** removes `news_events` from the prompt and requires an empty citation list.
+- **Masking** maps tickers, company names, well-known executives and flagship brands to stable IDs (`CO01`..`CO15`, `COxx-exec`, `COxx-brand`; seeded shuffle) in everything the model sees, including the what-if output, and maps the answer back. Price levels are never shown (returns/volatility only) so they cannot identify a company. Extend `src/masking.py: ALIASES` if review finds identifying words leaking through.
+- **Universe groups** (`config.UNIVERSE_GROUPS`): `tech` = AVGO, META, MSFT, NVDA, ORCL, QCOM; `non_tech` = the other 9. META (GICS Communication Services) is grouped with tech as a heavily covered platform company.
+- **Prompt versions:** `decide-v1` parked ~65% in cash and held on 40 of 42 validation days (audit PASS, but useless as a strategy). `decide-v2` (default) adds a benchmark mandate: start from equal weight in the run's universe ((1 - min_cash)/N per stock) and tilt on evidence; cash above `min_cash` is an active bet that needs a reason. Funding a new all-cash portfolio is exempt from `max_turnover` (the limit governs rebalancing); every other limit still applies.
+- **Scoring** (`src/evaluate_runs.py`): return, Sharpe, max drawdown, beta/alpha and information ratio against the run's own equal-weight buy-and-hold benchmark (bought at the first execution open with the same cost), plus the news effect = news minus no-news daily returns with a t-statistic. Judge tech vs non-tech on excess/alpha and on the news effect, not raw return (raw return mostly measures the sector). A quick read only; ~40 days is short.
+- **Tuning on validation only:** `decide` refuses any range overlapping the test split unless `--allow-test` is passed.
+- **Audit** checks every trading day has a schema-valid Proposal within limits, and every cited article was shown to the agent and was published (and any known update made) before the decision time.
+- The paper tracker in `src/market_features.py` (overnight drift, fills at the open, 5 bps cost) only feeds the agent's portfolio and memory; Punit's backtester is the authoritative P&L.

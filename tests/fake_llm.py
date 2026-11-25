@@ -21,6 +21,8 @@ class FakeGemini:
             if isinstance(step, Exception): raise step
             return LLMResponse(text=step, model_version=version)
         prompt = request.full_prompt()
+        if "CONTEXT:\n" in prompt:
+            return LLMResponse(json.dumps(self._decide(prompt)), version, 300, 80)
         if "ARTICLES:" in prompt:
             graded = "materiality" in request.schema["properties"]["results"]["items"]["properties"]
             results = []
@@ -44,6 +46,27 @@ class FakeGemini:
                            "direction": "positive" if "beat" in h or "upgrade" in h else "negative",
                            "horizon": "short_term", "confidence": 0.85})
         return LLMResponse(json.dumps({"events": events}), version, 100, 20)
+
+
+    @staticmethod
+    def _decide(prompt):
+        """Buy 30% of each stock with positive news (deliberately over max_position, to exercise
+        the review round and enforcement), cite that news; otherwise start with 10% in the first
+        three stocks; otherwise hold."""
+        ctx = json.loads(prompt.split("CONTEXT:\n", 1)[1].split("\n\nDRAFT:", 1)[0].split("\n\nYour previous", 1)[0])
+        review = "\n\nDRAFT:" in prompt
+        cap = ctx["risk_profile"]["max_position"] if review else 1.0
+        pos = [e for e in ctx.get("news_events", []) if e["direction"] == "positive"]
+        if pos:
+            tickers = sorted({e["ticker"] for e in pos})
+            return {"rationale": "Positive news on " + ", ".join(tickers), "hold": False,
+                    "weights": [{"ticker": t, "weight": min(0.3, cap)} for t in tickers],
+                    "cited_article_ids": sorted({e["article_id"] for e in pos})}
+        if not ctx["portfolio"]["positions"]:
+            return {"rationale": "Initial allocation", "hold": False,
+                    "weights": [{"ticker": m["ticker"], "weight": 0.1} for m in ctx["market"][:3]],
+                    "cited_article_ids": []}
+        return {"rationale": "Nothing changed; hold", "hold": True, "weights": [], "cited_article_ids": []}
 
 
 def transient(msg="503 unavailable"):

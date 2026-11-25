@@ -47,7 +47,8 @@ def test_invalid_json_retried_with_feedback_then_cached(tmp_path):
 
 def test_transient_errors_bounded(tmp_path):
     fake = FakeGemini(script=[transient()] * 10)
-    with pytest.raises(LLMError, match="after 3 attempts"):
+    from src.llm_client import RetriesExhaustedError
+    with pytest.raises(RetriesExhaustedError, match="after 3 attempts"):
         client(tmp_path, fake, max_attempts=3).generate_json(req(), "t")
     assert len(fake.calls) == 3
 

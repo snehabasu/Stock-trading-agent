@@ -51,6 +51,10 @@ class TransientLLMError(LLMError):
     """Rate limit, timeout or 5xx; safe to retry."""
 
 
+class RetriesExhaustedError(LLMError):
+    """Every attempt failed with a transient error (overload/timeout); retrying later may work."""
+
+
 # Keys Gemini's response_json_schema does not need; they stay in the local schema.
 _LOCAL_ONLY_KEYS = {"$schema", "$id", "title", "additionalProperties"}
 
@@ -243,7 +247,8 @@ class LLMClient:
                 continue
             self.cache.put(request, stage, response)
             return LLMResult(data, request.prompt_hash, request.model, response.model_version, False)
-        raise LLMError(f"{stage}: gave up after {self.max_attempts} attempts; last error: {last_error}")
+        kind = RetriesExhaustedError if isinstance(last_error, TransientLLMError) else LLMError
+        raise kind(f"{stage}: gave up after {self.max_attempts} attempts; last error: {last_error}")
 
 
 class GeminiBackend:

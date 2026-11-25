@@ -41,6 +41,14 @@ CREATE TABLE IF NOT EXISTS news_events (
  PRIMARY KEY(article_id,ticker,model,prompt_version)
 );
 CREATE INDEX IF NOT EXISTS idx_events_ticker_time ON news_events(ticker,available_at);
+CREATE TABLE IF NOT EXISTS decision_log (
+ run_name TEXT NOT NULL, as_of TEXT NOT NULL, exec_day TEXT NOT NULL, config_json TEXT NOT NULL,
+ model TEXT NOT NULL, model_version TEXT, prompt_version TEXT NOT NULL,
+ portfolio_before_json TEXT NOT NULL, nav_before REAL NOT NULL, context_article_ids_json TEXT NOT NULL,
+ draft_json TEXT, what_if_json TEXT, final_llm_json TEXT NOT NULL, adjustments_json TEXT,
+ proposal_json TEXT NOT NULL, target_json TEXT NOT NULL, prompt_hashes_json TEXT, created_at TEXT NOT NULL,
+ PRIMARY KEY(run_name, as_of)
+);
 CREATE TABLE IF NOT EXISTS ingestion_runs (
  run_id INTEGER PRIMARY KEY AUTOINCREMENT, data_type TEXT NOT NULL,
  started_at TEXT NOT NULL, finished_at TEXT, records_seen INTEGER DEFAULT 0,

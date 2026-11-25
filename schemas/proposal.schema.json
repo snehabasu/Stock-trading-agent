@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Proposal",
+  "type": "object",
+  "properties": {
+    "as_of": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "run": {
+      "type": "string"
+    },
+    "hold": {
+      "type": "boolean"
+    },
+    "weights": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "cash": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cited_article_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "as_of",
+    "run",
+    "hold",
+    "weights",
+    "cash",
+    "rationale",
+    "cited_article_ids"
+  ],
+  "additionalProperties": false
+}

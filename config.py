@@ -39,9 +39,9 @@ TRIAGE_RELEVANT_LEVELS = ("minor", "material")  # triage-v2 grades counted as re
 TRIAGE_SAMPLES = 1               # self-consistency samples per batch (1 = single greedy call)
 TRIAGE_SAMPLE_TEMPERATURE = 1.0  # used only when TRIAGE_SAMPLES > 1
 EXTRACTOR_BATCH_SIZE = 10       # (article, ticker) pairs per extraction call
-LLM_MAX_ATTEMPTS = 4
-LLM_BASE_DELAY_SECONDS = 5.0  # backoff 5s, 10s, 20s between attempts (Gemini 503s last a while)
-LLM_TIMEOUT_SECONDS = 60
+LLM_MAX_ATTEMPTS = 6
+LLM_BASE_DELAY_SECONDS = 5.0  # backoff 5, 10, 20, 40, 60s (Gemini 503 overloads come in spells)
+LLM_TIMEOUT_SECONDS = 120
 EXPERIMENT_CONDITIONS = 6
 
 # Alpaca symbol spellings (verified 2026-11-23): bars accept BRK.B and reject BRK-B;
@@ -56,6 +56,36 @@ def alpaca_symbols(tickers, mapping):
 def canonical_ticker(symbol):
     s = str(symbol).upper().strip()
     return TICKER_ALIASES.get(s, s)
+
+# --- Decision agent (Task 3) -----------------------------------------------------
+DECISION_MODEL = "gemini-3.5-flash-lite"
+DECISION_PROMPT_VERSION = "decide-v2"
+DECISION_USE_NEWS = True         # False = "same LLM without news" baseline / remove-news robustness test
+DECISION_MASK_ENTITIES = False   # True = anonymize names/tickers as CO01..CO15 (H2)
+DECISION_RISK_PROFILE = "moderate"
+DECISION_UNIVERSE = "all"        # key of UNIVERSE_GROUPS
+DECISION_EVENT_LOOKBACK_DAYS = 3
+DECISION_MAX_EVENTS = 60
+DECISION_MEMORY_SIZE = 5         # past decisions shown to the agent (thesis memory)
+DECISION_PRICE_LOOKBACK_BARS = 60
+DECISION_REVIEW = "always"       # what-if review round: "always" | "on_violation" | "never"
+TRANSACTION_COST_BPS = 5.0       # per unit of traded notional, used by the what-if tool and tracker
+# Long-only. min_cash caps gross exposure; max_turnover is one-way, as a fraction of NAV per day;
+# vol_ceiling is annualized ex-ante volatility (a warning in the what-if tool, not enforced).
+RISK_PROFILES = {
+    "conservative": {"max_position": 0.10, "min_cash": 0.40, "max_turnover": 0.20, "vol_ceiling": 0.12},
+    "moderate": {"max_position": 0.20, "min_cash": 0.10, "max_turnover": 0.35, "vol_ceiling": 0.20},
+    "aggressive": {"max_position": 0.30, "min_cash": 0.00, "max_turnover": 0.60, "vol_ceiling": 0.30},
+}
+# Tech vs non-tech comparison on the frozen 15 (team choice 2026-11-23). META is GICS
+# Communication Services but grouped with tech here as a heavily covered platform company;
+# MA moved from IT to Financials in 2023 and is non-tech here.
+UNIVERSE_GROUPS = {
+    "all": TICKERS,
+    "tech": ["AVGO", "META", "MSFT", "NVDA", "ORCL", "QCOM"],
+    "non_tech": ["AMGN", "BRK-B", "CAT", "COST", "JNJ", "LLY", "MA", "PEP", "WFC"],
+}
+assert sorted(UNIVERSE_GROUPS["tech"] + UNIVERSE_GROUPS["non_tech"]) == sorted(TICKERS)
 
 def load_llm_settings():
     load_dotenv()
